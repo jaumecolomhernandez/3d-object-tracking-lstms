@@ -1,6 +1,6 @@
 {
     "data": {
-        "basepath": "/home/usuario/thesis/datasets/KITTITrackletsCarsPersons"
+        "basepath": "/home/usuario/project_data/datasets/KITTITrackletsCarsPersons"
     },
     "model": {
         "model": "tp8",

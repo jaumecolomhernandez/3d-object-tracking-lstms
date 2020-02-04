@@ -1,6 +1,6 @@
 {
     "data": {
-        "basepath": "/home/usuario/thesis/datasets/SynthCars",
+        "basepath": "/home/usuario/project_data/datasets/SynthCars",
         "num_channels": 3
     },
     "gpu_index": 0,
@@ -22,7 +22,7 @@
         }
     },
     "logging": {
-        "basedir": "/home/usuario/thesis/trained"
+        "basedir": "/home/usuario/project_data/trained"
     },
     "evaluation": {
         "save_every_epoch": true

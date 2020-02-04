@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 import time
-#  from py_goicp import GoICP, POINT3D, ROTNODE, TRANSNODE
 from contextlib import contextmanager
 
 import numpy as np
@@ -16,7 +15,6 @@ import provider
 from pointcloud import ICP, get_mat_angle
 
 logger = logging.getLogger('tp')
-
 
 # https://stackoverflow.com/questions/5081657/how-do-i-prevent-a-c-shared-library-to-print-on-stdout-in-python
 @contextmanager

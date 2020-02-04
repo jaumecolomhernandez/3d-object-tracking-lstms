@@ -1,6 +1,6 @@
 {
     "data": {
-        "basepath": "/home/usuario/thesis/datasets/SynthCars"
+        "basepath": "/home/usuario/project_data/datasets/SynthCars"
     },
     "model": {
         "model": "tp8",

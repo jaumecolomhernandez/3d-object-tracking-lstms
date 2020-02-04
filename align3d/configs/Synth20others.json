@@ -1,6 +1,6 @@
 {
     "data": {
-        "basepath": "/home/usuario/thesis/datasets/Synth20others"
+        "basepath": "/home/usuario/project_data/datasets/Synth20others"
     },
     "model": {
         "model": "tp8",
