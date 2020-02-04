@@ -155,7 +155,7 @@ def evaluate(cfg, val_idxs, all_pred_translations, all_pred_angles, all_gt_trans
     per_transform_info = []
     for idx, val_idx, translation, gt_translation, pred_angle, gt_angle, gt_pc1center in zip([x for x in range(len(val_idxs))], val_idxs, new_all_pred_translations, all_gt_translations, all_pred_angles, all_gt_angles, all_gt_pc1centers):
         meta = json.load(open(f'{cfg.data.basepath}/meta/{str(val_idx).zfill(8)}.json', 'r'))
-        if 'KITTI_tracklets' in cfg.data.basepath:
+        if 'KITTITracklets' in cfg.data.basepath:
             is_test = 'trackids' in meta and meta['trackids'][0] in [2, 6, 7, 8, 10]
         elif 'Synth' in cfg.data.basepath:
             is_test = idx >= 1000
