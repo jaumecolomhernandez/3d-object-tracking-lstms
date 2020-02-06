@@ -1,3 +1,4 @@
 __pycache__/
 slurm-*
-/configs/icp_*
+/configs/icp/
+events*
