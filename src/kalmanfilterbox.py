@@ -1,4 +1,4 @@
-# Shamelessly copied from: https://github.com/xinshuoweng/AB3DMOT/blob/master/main.py
+# Source from: https://github.com/xinshuoweng/AB3DMOT/blob/master/main.py
 # Credits: Xinshuo Weng (https://github.com/xinshuoweng)
 
 from filterpy.kalman import KalmanFilter

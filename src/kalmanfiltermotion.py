@@ -21,32 +21,24 @@ class KalmanMotionTracker(object):
       B : ndarray (dim_x, dim_u), default 0 control transition matrix
     """
     #define constant velocity model
-    self.kf = KalmanFilter(dim_x=10, dim_z=7)   
+    self.kf = KalmanFilter(dim_x=5, dim_z=3)   
 
-    self.kf.x[:7] = position.reshape((7, 1))
-    self.kf.P[7:,7:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
+    self.kf.x[:3] = position.reshape((3, 1))
+    self.kf.P[3:,3:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
     self.kf.P *= 10.
-    self.kf.Q[7:,7:] *= 0.01
+    self.kf.Q[3:,3:] *= 0.01
 
 
-    self.kf.F = np.array([[1,0,0,0,0,0,0,1,0,0],      # state transition matrix
-                          [0,1,0,0,0,0,0,0,1,0],
-                          [0,0,1,0,0,0,0,0,0,1],
-                          [0,0,0,1,0,0,0,0,0,0],  
-                          [0,0,0,0,1,0,0,0,0,0],
-                          [0,0,0,0,0,1,0,0,0,0],
-                          [0,0,0,0,0,0,1,0,0,0],
-                          [0,0,0,0,0,0,0,1,0,0],
-                          [0,0,0,0,0,0,0,0,1,0],
-                          [0,0,0,0,0,0,0,0,0,1]])     
+    self.kf.F = np.array([[1,0,0,1,0],      # state transition matrix
+                          [0,1,0,0,1],
+                          [0,0,1,0,0],
+                          [0,0,0,1,0],  
+                          [0,0,0,0,1]])
     
-    self.kf.H = np.array([[1,0,0,0,0,0,0,0,0,0],      # measurement function,
-                          [0,1,0,0,0,0,0,0,0,0],
-                          [0,0,1,0,0,0,0,0,0,0],
-                          [0,0,0,1,0,0,0,0,0,0],
-                          [0,0,0,0,1,0,0,0,0,0],
-                          [0,0,0,0,0,1,0,0,0,0],
-                          [0,0,0,0,0,0,1,0,0,0]])
+    self.kf.H = np.array([[1,0,0,0,0],      # measurement function,
+                          [0,1,0,0,0],
+                          [0,0,1,0,0]])
+ 
 
     # self.kf.R[0:,0:] *= 10.   # measurement uncertainty
 
@@ -69,7 +61,7 @@ class KalmanMotionTracker(object):
     if self.still_first:
       self.first_continuing_hit += 1      # number of continuing hit in the fist time
     
-    ######################### orientation correction
+    ######################### orientation correction NEEDED?
     if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2    # make the theta still in the range
     if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
 
@@ -90,13 +82,6 @@ class KalmanMotionTracker(object):
       else: self.kf.x[3] -= np.pi * 2
     
     #########################
-
-    # Velocity computation
-    # 
-    # 
-    # 
-    # 
-    #  
 
     self.kf.update(position)
 
