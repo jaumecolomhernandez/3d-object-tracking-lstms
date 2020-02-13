@@ -40,6 +40,8 @@ parser.add_argument('--refineICPmethod', required=False, default='p2p', choices=
 parser.add_argument('--eval_epoch', required=False, default='199', help='Epoch to eval in eval_only mode')
 FLAGS = parser.parse_args()
 
+print(FLAGS)
+
 load_config(FLAGS.config)
 cfg = configGlobal
 
@@ -233,7 +235,12 @@ def train(eval_only=False, eval_epoch=None, eval_only_model_to_load=None, do_tim
         sess = tf.Session(config=config)
 
         # Add summary writers
-        #  merged = tf.merge_all_summaries()
+        # Documentation for summary.FileWriter:
+        # https://www.tensorflow.org/api_docs/python/tf/compat/v1/summary/FileWriter
+        # One line descriptions: Writes Summary protocol buffers to event files
+        # Params:
+        #   - logdir: (str) path to save the logs
+        #   - graph:  (tf.Graph) current Graph object
         merged = tf.summary.merge_all()
         train_writer = tf.summary.FileWriter(os.path.join(cfg.logging.logdir, 'train'), sess.graph)
         val_writer = tf.summary.FileWriter(os.path.join(cfg.logging.logdir, 'val'))
@@ -307,7 +314,7 @@ def train(eval_only=False, eval_epoch=None, eval_only_model_to_load=None, do_tim
 
                 if not eval_only:
                     train_one_epoch(sess, ops, train_writer, epoch)
-                if eval_only or True or epoch % 10 == 0:
+                if eval_only or True or epoch % 10 == 0: # What is going on here?
                     if do_timings:
                         for i in range(10):
                             eval_one_epoch(sess, ops, val_writer, val_writer_180, epoch, eval_only=eval_only, do_timings=True, override_batch_size=override_batch_size)
@@ -407,8 +414,8 @@ def eval_one_epoch(sess, ops, val_writer, val_writer_180, epoch, eval_only, do_t
     if FLAGS.refineICP:
         eval_dir = f'{eval_dir}/refined_{FLAGS.refineICPmethod}{"_"+FLAGS.its if FLAGS.its != 30 else ""}'
 
-    if os.path.isdir(eval_dir):
-        os.rename(eval_dir, f'{eval_dir}_backup_{int(time.time())}')
+    #if os.path.isdir(eval_dir):
+    #    os.rename(eval_dir, f'{eval_dir}_backup_{int(time.time())}')
 
     os.makedirs(eval_dir, exist_ok=True)
 

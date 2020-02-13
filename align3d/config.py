@@ -76,10 +76,10 @@ def load_config(filename):
         if configGlobal.evaluation.special.mode == 'icp':
             configGlobal.logging.__dict__["logdir"] = configGlobal.logging.basedir + f'/icp_{configGlobal.data.basename}/{name}'
 
-    TRAIN_INDICES = provider.getDataFiles(f'{configGlobal.data.basepath}/split/train.txt')
-    VAL_INDICES = provider.getDataFiles(f'{configGlobal.data.basepath}/split/val.txt')
-    configGlobal.data.__dict__["ntrain"] = len(TRAIN_INDICES)
-    configGlobal.data.__dict__["nval"] = len(VAL_INDICES)
+    #TRAIN_INDICES = provider.getDataFiles(f'{configGlobal.data.basepath}/split/train.txt')
+    #VAL_INDICES = provider.getDataFiles(f'{configGlobal.data.basepath}/split/val.txt')
+    #configGlobal.data.__dict__["ntrain"] = len(TRAIN_INDICES)
+    #configGlobal.data.__dict__["nval"] = len(VAL_INDICES)
 
 
 def save_config(filename):

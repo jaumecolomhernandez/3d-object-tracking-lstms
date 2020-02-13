@@ -1,13 +1,20 @@
-import tensorflow.compat.v1 as tf
+import tensorflow.compat.v1 as tf # Fix to run deprecated tensorflow functions
 tf.disable_v2_behavior()
+
 import numpy as np
 import sys
 import os
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))   # TODO: Fix this!
 ROOT_DIR = os.path.dirname(BASE_DIR)
-sys.path.insert(0, os.path.join(ROOT_DIR, 'utils'))
+
+# This is to load the directory
+# TODO: Create package with all of this
+sys.path.insert(0, os.path.join(ROOT_DIR, 'utils'))    
 import tf_util
 import tf_util_dgcnn
+
+# TODO: Understand or fix the actual config organization
 from config import configGlobal as cfg
 
 

@@ -2,7 +2,7 @@ import open3d as o3d
 import numpy as np
 import sys
 
-arr = np.load(f"/home/usuario/project_data/datasets/Synth20/pointcloud1/{sys.argv[1]}.npy")
+arr = np.load(f"/home/usuario/project_data/datasets/SynthCarsPersons/pointcloud1/{sys.argv[1]}.npy")
 
 print(arr.shape)
 pcd = o3d.geometry.PointCloud()
