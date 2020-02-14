@@ -38,105 +38,10 @@ parser.add_argument('--its', required=False, default=30, help='How many iteratio
 parser.add_argument('--use_old_results', action='store_true', help='Whether the model should actually be loaded and used for inference, or old results should be used for ICP refinement')
 parser.add_argument('--refineICPmethod', required=False, default='p2p', choices=['p2p'], help='ICP method for refinement')
 parser.add_argument('--eval_epoch', required=False, default='199', help='Epoch to eval in eval_only mode')
+
 FLAGS = parser.parse_args()
-
-print(FLAGS)
-
-load_config(FLAGS.config)
 cfg = configGlobal
-
-datestr_now = datetime.datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
-os.makedirs(cfg.logging.logdir, exist_ok=True)
-configcopyfile = f'{cfg.logging.logdir}/config.json'
-if os.path.exists(configcopyfile):
-    configcopyfile = f'{configcopyfile[:-5]}_{datestr_now}.json'
-save_config(configcopyfile)
-
-if cfg.model.model == 'tp8':
-    MODEL = MODEL_tp8
-else:
-    print("Model not available!")
-    assert False
-
-
-class TqdmLoggingHandler(logging.StreamHandler):
-    def __init__(self, level=logging.NOTSET):
-        super().__init__(level)
-
-    def emit(self, record):
-        try:
-            msg = self.format(record)
-            tqdm.write(msg)
-            self.flush()
-        except (KeyboardInterrupt, SystemExit):
-            raise
-        except Exception:
-            self.handleError(record)
-
-
-class MultiLineFormatter(logging.Formatter):
-    def format(self, record):
-        s = logging.Formatter.format(self, record)
-        try:
-            header, footer = s.split(record.message)
-            s = s.replace('\n', '\n' + ' ' * len(header))
-            return s
-        except Exception:
-            return s
-
-
-formatter = MultiLineFormatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s', '%Y-%m-%d %H:%M:%S')
-
-streamhandler = TqdmLoggingHandler(logging.INFO)
-streamhandler.setLevel(logging.INFO)
-streamhandler.setFormatter(formatter)
-
-logfile = f'{cfg.logging.logdir}/out.log'
-if os.path.exists(logfile):
-    logfile = f'{logfile[:-4]}_{datestr_now}.log'
-filehandler = logging.FileHandler(logfile)
-filehandler.setLevel(logging.DEBUG)
-filehandler.setFormatter(formatter)
-
-tf_logger = logging.getLogger('tensorflow')
-for handler in tf_logger.handlers:
-    handler.close()
-    tf_logger.removeFilter(handler)
-    tf_logger.removeHandler(handler)
-tf_logger.addHandler(streamhandler)
-tf_logger.addHandler(filehandler)
-tf_logger.setLevel(logging.DEBUG)
-
-logger = logging.getLogger('tp')
-logger.addHandler(streamhandler)
-logger.addHandler(filehandler)
-logger.setLevel(logging.DEBUG)
-
-logger.debug(configGlobal)
-
-
-class tqdm(tqdm_orig):
-    """ 
-        PROGRESS BAR OBJECT 
-        It is used to show the progress bar at the bottom when training/eval
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs, leave=False)
-
-    def __iter__(self):
-        return super().__iter__()
-
-    def __del__(self):
-        self.ascii = True
-        self.dynamic_ncols = False
-        self.ncols = 100
-        logger.info(self.__repr__())
-        return super().__del__()
-
-
-TRAIN_INDICES = provider.getDataFiles(f'{cfg.data.basepath}/split/train.txt')
-VAL_INDICES = provider.getDataFiles(f'{cfg.data.basepath}/split/val.txt')
-
+MODEL = MODEL_tp8
 
 def get_learning_rate(batch):
     num_batches_per_epoch = len(TRAIN_INDICES) // cfg.training.batch_size
@@ -192,7 +97,7 @@ def print_tensors_in_checkpoint_file(file_name, tensor_name, all_tensors):
     return varlist
 
 
-def train(eval_only=False, eval_epoch=None, eval_only_model_to_load=None, do_timings=False, override_batch_size=None):
+def train():
     with tf.Graph().as_default():
         with tf.device('/gpu:' + str(cfg.gpu_index)):
             pcs1, pcs2, translations, rel_angles, pc1centers, pc2centers, pc1angles, pc2angles = MODEL.placeholder_inputs(cfg.training.batch_size, cfg.model.num_points)

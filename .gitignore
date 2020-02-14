@@ -1,2 +1,4 @@
 events*
 *.trace
+*.csv
+*.npy
