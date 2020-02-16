@@ -24,35 +24,22 @@ import models.tp8 as MODEL_tp8
 from config import load_config, configGlobal, save_config
 
 from argparse import Namespace
+import json
+from pandas import DataFrame
 
+def run_inference(configs, ids):
+    """  """
 
-if __name__ == "__main__":
-
-    FLAGS = Namespace(config='configs/KITTITrackletsCarsHard.json', 
-                  eval_epoch='28', 
-                  its=30, 
-                  operation='eval_only', 
-                  refineICP=False, 
-                  refineICPmethod='p2p', 
-                  use_old_results=False)
-    
-    load_config(FLAGS.config)
-
-    # temp fix
-    VAL_INDICES = provider.getDataFiles(f'{configGlobal.data.basepath}/split/val.txt')[:200]
+    print(configs)
+    load_config(configs[0])
 
     cfg = configGlobal
-
     MODEL = MODEL_tp8
+    eval_epoch=configs[1]
 
-    eval_only_model_to_load=None
-    eval_only=True
-    eval_epoch=FLAGS.eval_epoch
-    do_timings=False
-    override_batch_size=None
+    VAL_INDICES = ids
 
     with tf.Graph().as_default():
-        
         # Define model on the device
         with tf.device('/gpu:' + str(cfg.gpu_index)):
             pcs1, pcs2, translations, rel_angles, pc1centers, pc2centers, pc1angles, pc2angles = MODEL.placeholder_inputs(cfg.training.batch_size, cfg.model.num_points)
@@ -127,17 +114,13 @@ if __name__ == "__main__":
         num_full_batches = int(np.floor(len(val_idxs) / batch_size))
 
         loss_sum = 0
-        #global_step = sess.run([ops['step']])[0]
         
         #  step_in_epochs = epoch + 1
         eval_dir = f'{cfg.logging.logdir}/val/eval{str(epoch).zfill(6)}'
         base_eval_dir = eval_dir
-        if FLAGS.refineICP:
-            eval_dir = f'{eval_dir}/refined_{FLAGS.refineICPmethod}{"_"+FLAGS.its if FLAGS.its != 30 else ""}'
 
         if os.path.isdir(eval_dir):
             os.rename(eval_dir, f'{eval_dir}_backup_{int(time.time())}')
-
         os.makedirs(eval_dir, exist_ok=True)
 
         # Prediction containers
@@ -162,7 +145,7 @@ if __name__ == "__main__":
             
             print(f'----- Samples {start_idx}/{len(VAL_INDICES)} -----')
             
-            # TODO: Create a class to solve this shit
+            # TODO: Create a class to solve this mess
             pcs1, pcs2, translations, rel_angles, pc1centers, pc2centers, pc1angles, pc2angles = provider.load_batch(val_idxs[start_idx:end_idx])
 
             # TODO: Investigate a better way to do this feed_dict
@@ -216,13 +199,48 @@ if __name__ == "__main__":
                 all_gt_translations[global_idx] = translations[idx]
                 all_gt_angles[global_idx] = rel_angles[idx]
                 all_gt_pc1centers[global_idx] = pc1centers[idx]
-            
+                
     print("Results fully computed")
 
     info = np.hstack((all_pred_translations[:,:-1], all_pred_angles, all_gt_translations[:,:-1], all_gt_angles, all_gt_pc1centers[:,:-1]))
     names = ['pred_trans_x', 'pred_trans_y', 'pred_angles', 'gt_trans_x', 'gt_trans_y', 'gt_angles', 'gt_pc1centers_x', 'gt_pc1centers_y']
 
-    df = pd.DataFrame(info, columns=names)
-    df.to_csv('output.csv')   
+    df = DataFrame(info, columns=names)
+    
+    return df
+
+def read_paths(filepath):
+    """ Read path json file from filepath """
+    with open(filepath) as file:
+        name_cont = json.load(file)
+    return name_cont
+
+
+if __name__ == "__main__":
+    # Path definition
+    home_path = '/home/usuario/'    # Adjust your path!
+    datasets_path = os.path.join(home_path, 'project_data', 'datasets')
+    new_path = os.path.join(home_path, 'project_data', 'new_datasets') 
+    
+    dataset_name = 'KITTITrackletsCars'
+    json_path = os.path.join(new_path, f"{dataset_name}_path.json")
+    
+    all_trajectories = read_paths(json_path)
+    all_ids = [val for val in all_trajectories.values()]
+    all_ids = [idx for list_ in all_ids for idx in list_]
+
+    
+    config='configs/KITTITrackletsCarsHard.json'
+    eval_epoch='28' 
+    refineICP=False
+    refineICPmethod='p2p'
+
+    configs = [config, eval_epoch, refineICP, refineICPmethod]
+
+    results = run_inference(configs, all_ids)
+
+    results.to_csv('output.csv')   
     
     print("Results stored to CSV file")
+
+
