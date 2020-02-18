@@ -82,20 +82,32 @@ def getDataFiles(list_filename):
 #  return (data, label)
 
 
-def load_from_separate_files(idx, dont_load_pointclouds=False):
-    data = json.load(open(f'{cfg.data.basepath}/meta/{str(idx).zfill(8)}.json', 'r'))
+def load_from_separate_files(idx, path=None, dont_load_pointclouds=False):
+    if path:
+      pa = f'{path}/meta/{str(idx).zfill(8)}.json'
+      data = json.load(open(pa, 'r'))
+    else:
+      data = json.load(open(f'{cfg.data.basepath}/meta/{str(idx).zfill(8)}.json', 'r'))
+
     translation, rel_angle = str_to_np(data['translation']), data['rel_angle']
     pc1center, pc2center = str_to_np(data['start_position']), str_to_np(data['end_position'])
     pc1angle, pc2angle = data['start_angle'], data['end_angle']
     if dont_load_pointclouds:
         return translation, rel_angle, pc1center, pc2center, pc1angle, pc2angle
-
-    pc1 = np.load(f'{cfg.data.basepath}/pointcloud1/{str(idx).zfill(8)}.npy')
-    pc2 = np.load(f'{cfg.data.basepath}/pointcloud2/{str(idx).zfill(8)}.npy')
+    if path:
+      pc1 = np.load(f'{path}/pointcloud1/{str(idx).zfill(8)}.npy')
+      pc2 = np.load(f'{path}/pointcloud2/{str(idx).zfill(8)}.npy')
+    else:
+      pc1 = np.load(f'{cfg.data.basepath}/pointcloud1/{str(idx).zfill(8)}.npy')
+      pc2 = np.load(f'{cfg.data.basepath}/pointcloud2/{str(idx).zfill(8)}.npy')
     if pc1.shape[0] == 0 or pc2.shape[0] == 0:
         logger.error(f'Empty pointcloud! {idx}')
+    
+    
     pc1 = pc1[np.random.choice(pc1.shape[0], cfg.model.num_points, replace=True), :] if pc1.shape[0] > 0 else np.zeros((cfg.model.num_points, 3), dtype=np.float32)
     pc2 = pc2[np.random.choice(pc2.shape[0], cfg.model.num_points, replace=True), :] if pc2.shape[0] > 0 else np.zeros((cfg.model.num_points, 3), dtype=np.float32)
+    
+
     #  pc1 = np.repeat(pc1, 10, axis=0)[:cfg.model.num_points,:]  # For testing repeated validation. If this is deterministic, the it leads to the same results
     #  pc2 = np.repeat(pc2, 10, axis=0)[:cfg.model.num_points,:]
     #  transform = np.load(f'{cfg.data.basepath}/transform/{str(idx).zfill(8)}.npy')
@@ -105,7 +117,7 @@ def load_from_separate_files(idx, dont_load_pointclouds=False):
     return pc1, pc2, translation, rel_angle, pc1center, pc2center, pc1angle, pc2angle
 
 
-def load_batch(indices, override_batch_size=None, dont_load_pointclouds=False):
+def load_batch(indices, path=None, override_batch_size=None, dont_load_pointclouds=False):
     batch_size = cfg.training.batch_size if override_batch_size is None else override_batch_size
     pcs1 = np.empty((batch_size, cfg.model.num_points, cfg.data.num_channels))
     pcs2 = np.empty((batch_size, cfg.model.num_points, cfg.data.num_channels))
@@ -120,9 +132,9 @@ def load_batch(indices, override_batch_size=None, dont_load_pointclouds=False):
 
     for idx, ex_idx in enumerate(indices):
         if dont_load_pointclouds:
-            translation, rel_angle, pc1center, pc2center, pc1angle, pc2angle = load_from_separate_files(ex_idx, dont_load_pointclouds=dont_load_pointclouds)
+            translation, rel_angle, pc1center, pc2center, pc1angle, pc2angle = load_from_separate_files(ex_idx,path=path, dont_load_pointclouds=dont_load_pointclouds)
         else:
-            pc1, pc2, translation, rel_angle, pc1center, pc2center, pc1angle, pc2angle = load_from_separate_files(ex_idx, dont_load_pointclouds=dont_load_pointclouds)
+            pc1, pc2, translation, rel_angle, pc1center, pc2center, pc1angle, pc2angle = load_from_separate_files(ex_idx, path=path, dont_load_pointclouds=dont_load_pointclouds)
             pcs1[idx] = pc1[:, :3]
             pcs2[idx] = pc2[:, :3]
 
