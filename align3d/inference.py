@@ -27,7 +27,9 @@ from argparse import Namespace
 import json
 from pandas import DataFrame
 
-def run_inference(configs, ids):
+from pandas import read_csv
+
+def run_inference(configs, ids, ppath):
     """  """
 
     print(configs)
@@ -140,14 +142,16 @@ def run_inference(configs, ids):
         cumulated_times = 0.
         for batch_idx in range(num_batches):
             
+            # AQUI ERROR!
             start_idx = batch_idx * batch_size
             end_idx = min((batch_idx + 1) * batch_size, len(val_idxs))
             
             print(f'----- Samples {start_idx}/{len(VAL_INDICES)} -----')
             
             # TODO: Create a class to solve this mess
-            pcs1, pcs2, translations, rel_angles, pc1centers, pc2centers, pc1angles, pc2angles = provider.load_batch(val_idxs[start_idx:end_idx])
-
+            pcs1, pcs2, translations, rel_angles, pc1centers, pc2centers, pc1angles, pc2angles = provider.load_batch(val_idxs[start_idx:end_idx], path=ppath)
+            #print(pc1centers)
+            
             # TODO: Investigate a better way to do this feed_dict
             feed_dict = {
                 ops['pcs1']: pcs1,
@@ -199,7 +203,11 @@ def run_inference(configs, ids):
                 all_gt_translations[global_idx] = translations[idx]
                 all_gt_angles[global_idx] = rel_angles[idx]
                 all_gt_pc1centers[global_idx] = pc1centers[idx]
-                
+
+    import matplotlib.pyplot as plt
+    plt.scatter(all_gt_pc1centers[:,0], all_gt_pc1centers[:,1])
+    plt.show()
+
     print("Results fully computed")
 
     info = np.hstack((all_pred_translations[:,:-1], all_pred_angles, all_gt_translations[:,:-1], all_gt_angles, all_gt_pc1centers[:,:-1]))
@@ -222,24 +230,34 @@ if __name__ == "__main__":
     datasets_path = os.path.join(home_path, 'project_data', 'datasets')
     new_path = os.path.join(home_path, 'project_data', 'new_datasets') 
     
-    dataset_name = 'KITTITrackletsCars'
-    json_path = os.path.join(new_path, f"{dataset_name}_path.json")
+    dataset_name = 'KITTITrackletsCarsPersons'
     
-    all_trajectories = read_paths(json_path)
-    all_ids = [val for val in all_trajectories.values()]
-    all_ids = [idx for list_ in all_ids for idx in list_]
+    dataset_path = os.path.join(datasets_path, dataset_name)
 
+    json_path = os.path.join(new_path, dataset_name,f"{dataset_name}_path.json")
     
-    config='configs/KITTITrackletsCarsHard.json'
-    eval_epoch='28' 
+    # Old way of getting trajectories
+    #all_trajectories = read_paths(json_path)
+    #all_ids = [val for val in all_trajectories.values()]
+    #all_ids = [idx for list_ in all_ids for idx in list_]
+
+    df = read_csv(f'/home/usuario/project_data/new_datasets/{dataset_name}/{dataset_name}_eval_info.csv')
+
+    points = []
+    for entry in df.values:
+        points.extend(range(entry[2],entry[2]+entry[3]))
+    all_ids = [str(i).zfill(8) for i in points]
+
+    config=f'configs/{dataset_name}.json'
+    eval_epoch='4' 
     refineICP=False
     refineICPmethod='p2p'
 
     configs = [config, eval_epoch, refineICP, refineICPmethod]
 
-    results = run_inference(configs, all_ids)
+    results = run_inference(configs, all_ids, ppath=dataset_path)
 
-    results.to_csv('output.csv')   
+    results.to_csv(os.path.join(new_path, dataset_name, f'{dataset_name}_output.csv'), index= False)   
     
     print("Results stored to CSV file")
 
