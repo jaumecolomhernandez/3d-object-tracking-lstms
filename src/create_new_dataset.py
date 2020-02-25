@@ -137,38 +137,31 @@ def read_paths(filepath):
     return name_cont
 
 def create_info_df(dataset_name):
-    """ Creates information dataframes based on the info.json path 
-        The created dataframe contains (name, type(train or eval), number of points, and cumsum)
-        Params:
-        - dataset_name: (string) name of the dataset; ATM all the paths are locally generated
-        Returns:
-        - df_train: (DataFrame) dataframe with the training values
-        - df_val: (DataFrame) dataframe with the evaluation values
-    """
+    """  """
     # Create paths
     datasets_path = os.path.join(home_path, 'project_data', 'datasets')
     new_path = os.path.join(home_path, 'project_data', 'new_datasets')   
-    json_path = os.path.join(new_path, dataset_name, f"{dataset_name}_path.json")
+    json_path = os.path.join(datasets_path, dataset_name, "paths.json")
 
     # Load info json
     info = read_paths(json_path)
     
     # data containers
-    cumsum = 0
     name_list = list()
-    container = np.zeros((len(info), 4), dtype=int)
-
+    container = np.zeros((len(info), 5), dtype=int)
+    cumsum = 0
     # Iterate through every of them
     for i, vtuple in enumerate((info.items())):
         # Append name
         name_list.append(vtuple[0])
 
         # Compute index values
-        container[i,2:4] = [len(vtuple[1]), cumsum]
-        cumsum = cumsum + len(vtuple[1])
+        container[i,2:5] = [vtuple[1][0], len(vtuple[1]), cumsum]
+        cumsum += len(vtuple[1])
+        print(cumsum)
 
     # Create dataframe and complete with info
-    df_all = pd.DataFrame(container, columns=['name', 'type', 'n_points', 'cumsum_n_points'])
+    df_all = pd.DataFrame(container, columns=['name', 'type', 'first_point', 'n_points', 'cumsum'])
     df_all['name'] = name_list
     
     # Split path creation
@@ -177,17 +170,19 @@ def create_info_df(dataset_name):
     indexes = np.loadtxt(os.path.join(dataset_path, 'val.txt'), dtype=int)
 
     # Set type of path
-    df_all.loc[df_all['cumsum_n_points'] < indexes[0], 'type'] = 'T'
-    df_all.loc[df_all['cumsum_n_points'] >= indexes[0], 'type'] = 'E'
+    df_all.loc[df_all['first_point'] < indexes[0], 'type'] = 'T'
+    df_all.loc[df_all['first_point'] >= indexes[0], 'type'] = 'E'
     
     # Select the evaluation entries (pick the larger than the first eval index!)
-    df_train = df_all[df_all['cumsum_n_points'] < indexes[0]]
-    df_val = df_all[df_all['cumsum_n_points'] >= indexes[0]]
+    df_train = df_all[df_all['first_point'] < indexes[0]]
+    df_val = df_all[df_all['first_point'] >= indexes[0]]
 
-    # Fix the cumulative sum parameters
-    df_val['cumsum_n_points'] -= df_val.iloc[0,3]
-    
-    return df_train, df_val
+    # Fix the cumulative sum parameters for df_val and df_train
+    df_train['cumsum'] = np.concatenate(([0],df_train['n_points'].cumsum().values))[:-1]
+    df_val['cumsum'] = np.concatenate(([0],df_val['n_points'].cumsum().values))[:-1]
+
+
+    return df_train, df_val, df_all
 
 if __name__ == "__main__":
     # Path definition
@@ -211,8 +206,7 @@ if __name__ == "__main__":
         
         # 3.A.Store info paths (json file with the indexes)
         # Create paths and store
-        new_dataset_path = os.path.join(new_path, name)
-        destination_path = os.path.join(new_dataset_path, f'{name}_path.json')
+        destination_path = os.path.join(dataset_path, 'paths.json')
         name_container = create_name_container(seq_track_metas)
         dump_name_container(name_container, destination_path)
         # 3.B.Store the paths in folders
@@ -221,8 +215,9 @@ if __name__ == "__main__":
         # store_seq(destination_path, seq_track_metas)
 
         # 4.Create info CSV with parameters about the paths
-        df_train, df_eval = create_info_df(name)
-        df_train.to_csv(os.path.join(new_dataset_path, f'{name}_train_info.csv'), index=False)
-        df_eval.to_csv(os.path.join(new_dataset_path, f'{name}_eval_info.csv'), index=False)
-
+        df_train, df_eval, df_all = create_info_df(name)
+        df_train.to_csv(os.path.join(dataset_path, 'info_train.csv'), index=False)
+        df_eval.to_csv(os.path.join(dataset_path, 'info_eval.csv'), index=False)
+        df_all.to_csv(os.path.join(dataset_path, 'info_all.csv'), index=False)
+        
     print("Done!")
