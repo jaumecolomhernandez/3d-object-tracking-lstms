@@ -138,6 +138,7 @@ def run_inference(configs, ids, ppath):
         all_gt_translations = np.empty((len(val_idxs), 3), dtype=np.float32)
         all_gt_angles = np.empty((len(val_idxs), 1), dtype=np.float32)
         all_gt_pc1centers = np.empty((len(val_idxs), 3), dtype=np.float32)
+        all_gt_pc1angles = np.empty((len(val_idxs), 1), dtype=np.float32)
         
         cumulated_times = 0.
         for batch_idx in range(num_batches):
@@ -203,15 +204,13 @@ def run_inference(configs, ids, ppath):
                 all_gt_translations[global_idx] = translations[idx]
                 all_gt_angles[global_idx] = rel_angles[idx]
                 all_gt_pc1centers[global_idx] = pc1centers[idx]
+                all_gt_pc1angles[global_idx] = pc1angles[idx]
 
-    import matplotlib.pyplot as plt
-    plt.scatter(all_gt_pc1centers[:,0], all_gt_pc1centers[:,1])
-    plt.show()
 
     print("Results fully computed")
 
-    info = np.hstack((all_pred_translations[:,:-1], all_pred_angles, all_gt_translations[:,:-1], all_gt_angles, all_gt_pc1centers[:,:-1]))
-    names = ['pred_trans_x', 'pred_trans_y', 'pred_angles', 'gt_trans_x', 'gt_trans_y', 'gt_angles', 'gt_pc1centers_x', 'gt_pc1centers_y']
+    info = np.hstack((all_pred_translations[:,:-1], all_pred_angles, all_gt_translations[:,:-1], all_gt_angles, all_gt_pc1centers[:,:-1], all_gt_pc1angles))
+    names = ['pred_trans_x', 'pred_trans_y', 'pred_angles', 'gt_trans_x', 'gt_trans_y', 'gt_angles', 'gt_pc1centers_x', 'gt_pc1centers_y', 'gt_pc1angles']
 
     df = DataFrame(info, columns=names)
     
@@ -228,20 +227,17 @@ if __name__ == "__main__":
     # Path definition
     home_path = '/home/usuario/'    # Adjust your path!
     datasets_path = os.path.join(home_path, 'project_data', 'datasets')
-    new_path = os.path.join(home_path, 'project_data', 'new_datasets') 
     
     dataset_name = 'KITTITrackletsCarsPersons'
     
     dataset_path = os.path.join(datasets_path, dataset_name)
 
-    json_path = os.path.join(new_path, dataset_name,f"{dataset_name}_path.json")
+    json_path = os.path.join(new_path, dataset_name, "paths.json")
     
     # Old way of getting trajectories
     #all_trajectories = read_paths(json_path)
     #all_ids = [val for val in all_trajectories.values()]
     #all_ids = [idx for list_ in all_ids for idx in list_]
-
-    df = read_csv(f'/home/usuario/project_data/new_datasets/{dataset_name}/{dataset_name}_eval_info.csv')
 
     points = []
     for entry in df.values:
@@ -257,7 +253,7 @@ if __name__ == "__main__":
 
     results = run_inference(configs, all_ids, ppath=dataset_path)
 
-    results.to_csv(os.path.join(new_path, dataset_name, f'{dataset_name}_output.csv'), index= False)   
+    results.to_csv(os.path.join(dataset_path, dataset_name, 'nn_output.csv'), index= False)   
     
     print("Results stored to CSV file")
 
