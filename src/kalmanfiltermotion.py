@@ -8,7 +8,7 @@ class KalmanMotionTracker(object):
   """
   This class represents the internal state of individual tracked objects observed as bbox.
   """
-  def __init__(self, position):
+  def __init__(self, position, parameter):
     """
     Initialises a tracker using initial position.
 
@@ -28,7 +28,8 @@ class KalmanMotionTracker(object):
     self.kf.x[:3] = position.reshape((3, 1))
     #self.kf.P[3:,3:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
     self.kf.P = np.eye(5) * 50.
-    self.kf.R = np.eye(3) * 5
+    self.kf.R = np.eye(3) * 0.5
+    #self.kf.R = np.eye(3) * parameter
 
 
     self.kf.P *= 10.
