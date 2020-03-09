@@ -2,6 +2,7 @@
 # Credits: Xinshuo Weng (https://github.com/xinshuoweng)
 
 from filterpy.kalman import KalmanFilter
+import numpy as np
 
 class KalmanMotionTracker(object):
   """
@@ -23,21 +24,25 @@ class KalmanMotionTracker(object):
     #define constant velocity model
     self.kf = KalmanFilter(dim_x=5, dim_z=3)   
 
+    # x = [x,y,vx,vy,va]
     self.kf.x[:3] = position.reshape((3, 1))
-    self.kf.P[3:,3:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
+    #self.kf.P[3:,3:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
+    self.kf.P = np.eye(5) * 50.
+    self.kf.R = np.eye(3) * 5
+
+
     self.kf.P *= 10.
     self.kf.Q[3:,3:] *= 0.01
 
-
-    self.kf.F = np.array([[1,0,0,1,0],      # state transition matrix
-                          [0,1,0,0,1],
+    self.kf.F = np.array([[1,0,1,0,0],      # state transition matrix
+                          [0,1,0,1,0],
                           [0,0,1,0,0],
                           [0,0,0,1,0],  
                           [0,0,0,0,1]])
     
-    self.kf.H = np.array([[1,0,0,0,0],      # measurement function,
-                          [0,1,0,0,0],
-                          [0,0,1,0,0]])
+    self.kf.H = np.array([[0,0,1,0,0],      # measurement function,
+                          [0,0,0,1,0],
+                          [0,0,0,0,1]])
  
 
     # self.kf.R[0:,0:] *= 10.   # measurement uncertainty
@@ -62,39 +67,39 @@ class KalmanMotionTracker(object):
       self.first_continuing_hit += 1      # number of continuing hit in the fist time
     
     ######################### orientation correction NEEDED?
-    if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2    # make the theta still in the range
-    if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
+    if self.kf.x[2] >= np.pi: self.kf.x[2] -= np.pi * 2    # make the theta still in the range
+    if self.kf.x[2] < -np.pi: self.kf.x[2] += np.pi * 2
 
-    new_theta = position[3]
+    new_theta = position[2]
     if new_theta >= np.pi: new_theta -= np.pi * 2    # make the theta still in the range
     if new_theta < -np.pi: new_theta += np.pi * 2
-    position[3] = new_theta
+    position[2] = new_theta
 
-    predicted_theta = self.kf.x[3]
+    predicted_theta = self.kf.x[2]
     if abs(new_theta - predicted_theta) > np.pi / 2.0 and abs(new_theta - predicted_theta) < np.pi * 3 / 2.0:     # if the angle of two theta is not acute angle
-      self.kf.x[3] += np.pi       
-      if self.kf.x[3] > np.pi: self.kf.x[3] -= np.pi * 2    # make the theta still in the range
-      if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
+      self.kf.x[2] += np.pi       
+      if self.kf.x[2] > np.pi: self.kf.x[2] -= np.pi * 2    # make the theta still in the range
+      if self.kf.x[2] < -np.pi: self.kf.x[2] += np.pi * 2
       
     # now the angle is acute: < 90 or > 270, convert the case of > 270 to < 90
-    if abs(new_theta - self.kf.x[3]) >= np.pi * 3 / 2.0:
-      if new_theta > 0: self.kf.x[3] += np.pi * 2
-      else: self.kf.x[3] -= np.pi * 2
+    if abs(new_theta - self.kf.x[2]) >= np.pi * 3 / 2.0:
+      if new_theta > 0: self.kf.x[2] += np.pi * 2
+      else: self.kf.x[2] -= np.pi * 2
     
     #########################
 
     self.kf.update(position)
 
-    if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2    # make the theta still in the range
-    if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
+    if self.kf.x[2] >= np.pi: self.kf.x[2] -= np.pi * 2    # make the theta still in the range
+    if self.kf.x[2] < -np.pi: self.kf.x[2] += np.pi * 2
 
   def predict(self):       
     """
     Advances the state vector and returns the predicted bounding box estimate.
     """
     self.kf.predict()      
-    if self.kf.x[3] >= np.pi: self.kf.x[3] -= np.pi * 2
-    if self.kf.x[3] < -np.pi: self.kf.x[3] += np.pi * 2
+    if self.kf.x[2] >= np.pi: self.kf.x[2] -= np.pi * 2
+    if self.kf.x[2] < -np.pi: self.kf.x[2] += np.pi * 2
 
     self.age += 1
     if(self.time_since_update>0):
@@ -102,10 +107,10 @@ class KalmanMotionTracker(object):
       self.still_first = False
     self.time_since_update += 1
     self.history.append(self.kf.x)
-    return self.history[-1]
+    #return self.history[-1]
 
   def get_state(self):
     """
     Returns the current bounding box estimate.
     """
-    return self.kf.x[:7].reshape((7, ))
+    return self.kf.x[2:].reshape((3, ))
