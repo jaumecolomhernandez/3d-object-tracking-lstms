@@ -39,9 +39,9 @@ class Route:
         base_data.reset_index(drop=True, inplace=True)
         
         # Create dataframe for each table
-        # Generated information -> nn, kf, lstm
-        self.generated = pd.DataFrame(0, index=df_index, columns=['nn_x', 'nn_y', 'nn_a'])
-        self.generated[['nn_x', 'nn_y', 'nn_a']] = base_data[['pred_trans_x', 'pred_trans_y','pred_angles']]
+        # Generated information -> align3d, kf, lstm
+        self.generated = pd.DataFrame(0, index=df_index, columns=['align3d_x', 'align3d_y', 'align3d_a'])
+        self.generated[['align3d_x', 'align3d_y', 'align3d_a']] = base_data[['pred_trans_x', 'pred_trans_y','pred_angles']]
         
         # Info from the meta files -> translation and pc1centers
         self.ground_truth = pd.DataFrame(0, index=df_index, columns=['x', 'y', 'a', 'a1_x', 'a1_y', 'a1_a'])
@@ -64,9 +64,9 @@ class Route:
     def __str__(self):
         pass
         
-    def make_fake_route(self, cat):
-        """ Creates fake route
-            A fake route is pc1centers + translation prediction. It does not take
+    def make_relative_route(self, cat):
+        """ Creates relative route
+            A relative route is pc1centers + translation prediction. It does not take
             into account the agregated error.
         """
         # Compute pose
@@ -75,11 +75,11 @@ class Route:
         fake_angle = self.ground_truth['a1_a']+self.generated[f'{cat}_a']
 
         # Store to table
-        self.routes.loc[:,f'{cat}_f_x'] = fake_pos[0]
-        self.routes.loc[:,f'{cat}_f_y'] = fake_pos[1]
-        self.routes.loc[:,f'{cat}_f_a'] = fake_angle
+        self.routes.loc[:,f'{cat}_relative_x'] = fake_pos[0]
+        self.routes.loc[:,f'{cat}_relative_y'] = fake_pos[1]
+        self.routes.loc[:,f'{cat}_relative_a'] = fake_angle
 
-    def make_route(self, cat):
+    def make_absolute_route(self, cat):
         """ Computes route
             It starts from the first pc1 center and keeps adding the translation predictions.
             Parameters:
@@ -100,15 +100,15 @@ class Route:
             route_arr[i_r,:2] = curr_pos
             route_arr[i_r,2] = curr_angle
 
-        self.routes.loc[:,f'{cat}_r_x'] = route_arr[:,0]
-        self.routes.loc[:,f'{cat}_r_y'] = route_arr[:,1]
-        self.routes.loc[:,f'{cat}_r_a'] = route_arr[:,2]
+        self.routes.loc[:,f'{cat}_absolute_x'] = route_arr[:,0]
+        self.routes.loc[:,f'{cat}_absolute_y'] = route_arr[:,1]
+        self.routes.loc[:,f'{cat}_absolute_a'] = route_arr[:,2]
     
     def run_kalman_filter(self, cat):
         """  """
         # Tracker object initialization
         position = self.generated.iloc[0,0:3].values
-        tracker = KalmanMotionTracker(position)
+        tracker = KalmanMotionTracker(position, None)
         
         # Container for the KF data
         kf = np.zeros((self.n_samples,3))
@@ -125,9 +125,9 @@ class Route:
             kf[i,:] = predictions
         
         # Store them in the container
-        self.generated.loc[:,'kf_x'] = kf[:,0]
-        self.generated.loc[:,'kf_y'] = kf[:,1]
-        self.generated.loc[:,'kf_a'] = kf[:,2]
+        self.generated.loc[:,f'{cat}+kf_x'] = kf[:,0]
+        self.generated.loc[:,f'{cat}+kf_y'] = kf[:,1]
+        self.generated.loc[:,f'{cat}+kf_a'] = kf[:,2]
 
     def compute_rmse_error(self, cat):    
         """ Computes the rmse for translation and angle.
