@@ -2,3 +2,6 @@ events*
 *.trace
 *.csv
 *.npy
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
