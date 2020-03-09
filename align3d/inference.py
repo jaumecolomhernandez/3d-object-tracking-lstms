@@ -228,16 +228,18 @@ if __name__ == "__main__":
     home_path = '/home/usuario/'    # Adjust your path!
     datasets_path = os.path.join(home_path, 'project_data', 'datasets')
     
-    dataset_name = 'KITTITrackletsCarsPersons'
+    dataset_name = 'KITTITrackletsCars'
     
     dataset_path = os.path.join(datasets_path, dataset_name)
 
-    json_path = os.path.join(new_path, dataset_name, "paths.json")
+    json_path = os.path.join(dataset_path, "paths.json")
     
     # Old way of getting trajectories
     #all_trajectories = read_paths(json_path)
     #all_ids = [val for val in all_trajectories.values()]
     #all_ids = [idx for list_ in all_ids for idx in list_]
+
+    df = read_csv(os.path.join(dataset_path, 'info_eval.csv'))
 
     points = []
     for entry in df.values:
@@ -245,7 +247,7 @@ if __name__ == "__main__":
     all_ids = [str(i).zfill(8) for i in points]
 
     config=f'configs/{dataset_name}.json'
-    eval_epoch='4' 
+    eval_epoch='40' 
     refineICP=False
     refineICPmethod='p2p'
 
@@ -253,7 +255,7 @@ if __name__ == "__main__":
 
     results = run_inference(configs, all_ids, ppath=dataset_path)
 
-    results.to_csv(os.path.join(dataset_path, dataset_name, 'nn_output.csv'), index= False)   
+    results.to_csv(os.path.join(dataset_path, 'NN_output.csv'), index= False)   
     
     print("Results stored to CSV file")
 
