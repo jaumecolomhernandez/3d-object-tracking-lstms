@@ -15,7 +15,6 @@ def get_mean_cov(pointcloud_path):
     
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(arr[:,:3])
-   
 
     # Return the mean and covariance
     return o3d.compute_point_cloud_mean_and_covariance(pcd)
