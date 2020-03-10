@@ -4,7 +4,8 @@ import numpy as np
 import os
 import sys
 
-from kalmanfiltermotion import KalmanMotionTracker
+#from kalmanfiltermotion import KalmanMotionTracker
+from kalmanfiltermotion_pos import KalmanMotionTracker
 
 class Route:
     """ Class to contain all the route data 
@@ -63,6 +64,26 @@ class Route:
     
     def __str__(self):
         pass
+
+    def add_obs_mean(self, mean_pc1, mean_pc2):
+        """ Adds mean of observations to gt DataFrame """
+        
+        # Assign pc1
+        self.ground_truth.loc[:,'mean_pc1_x'] = mean_pc1[:,0]
+        self.ground_truth.loc[:,'mean_pc1_y'] = mean_pc1[:,1]
+
+        # Assign pc2
+        self.ground_truth.loc[:,'mean_pc2_x'] = mean_pc1[:,0]
+        self.ground_truth.loc[:,'mean_pc2_y'] = mean_pc1[:,1]
+
+        # Create route with first observation of pc1 and the rest
+        # from pc2
+        self.routes.loc[0, 'obs_x'] = mean_pc1[0,0]
+        self.routes.loc[0, 'obs_y'] = mean_pc1[0,1]
+        self.routes.loc[1:, 'obs_x'] = mean_pc2[1:,0]
+        self.routes.loc[1:, 'obs_y'] = mean_pc2[1:,1]
+
+        self.routes.loc[:, 'obs_a'] = 1
         
     def make_relative_route(self, cat):
         """ Creates relative route
@@ -107,17 +128,21 @@ class Route:
     def run_kalman_filter(self, cat):
         """  """
         # Tracker object initialization
-        position = self.generated.iloc[0,0:3].values
-        tracker = KalmanMotionTracker(position, None)
+        observed_vel = self.generated.iloc[0,0:3].values
+        observed_pos = self.routes.loc[0,['obs_x', 'obs_y']].values
+        kf_obs = np.concatenate((observed_pos, observed_vel)) 
+        tracker = KalmanMotionTracker(kf_obs, None)
         
         # Container for the KF data
         kf = np.zeros((self.n_samples,3))
-        kf[0,:] = position
+        kf[0,:] = observed_vel
 
         # We feed from 0 to N observations to the filter
         for i in range(1, self.n_samples):
-            position = self.generated.loc[i,[f'{cat}_x', f'{cat}_y', f'{cat}_a']].values
-            tracker.update(position)
+            observed_vel = self.generated.loc[i,[f'{cat}_x', f'{cat}_y', f'{cat}_a']].values
+            observed_pos = self.routes.loc[i,['obs_x', 'obs_y']].values
+            kf_obs = np.concatenate((observed_pos, observed_vel))
+            tracker.update(kf_obs)
             # We store the inmediate pose
             predictions = tracker.predict()
             # We present the updated state
