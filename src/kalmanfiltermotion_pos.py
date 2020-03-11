@@ -4,7 +4,7 @@
 from filterpy.kalman import KalmanFilter
 import numpy as np
 
-class KalmanMotionTracker(object):
+class KalmanMotionTracker_Pos(object):
   """
   This class represents the internal state of individual tracked objects observed as bbox.
   """
