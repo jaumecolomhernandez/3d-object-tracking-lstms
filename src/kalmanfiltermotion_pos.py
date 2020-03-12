@@ -28,12 +28,18 @@ class KalmanMotionTracker_Pos(object):
     self.kf.x = position.reshape((5, 1))
     #self.kf.P[3:,3:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
     self.kf.P = np.eye(5) * 50.
-    self.kf.R = np.eye(5) * 0.5
+    #self.kf.R = np.eye(5) * 0.5
+    obs = parameter
+    self.kf.R = np.array([[obs,0,1,0,0],      # state transition matrix
+                          [0,obs,0,1,0],
+                          [0,0,0.5,0,0],
+                          [0,0,0,0.5,0],  
+                          [0,0,0,0,0.5]])
     #self.kf.R = np.eye(3) * parameter
 
 
     self.kf.P *= 10.
-    self.kf.Q[3:,3:] *= 0.01
+    self.kf.Q[3:,3:] *= 0.1
 
     self.kf.F = np.array([[1,0,1,0,0],      # state transition matrix
                           [0,1,0,1,0],
@@ -101,9 +107,10 @@ class KalmanMotionTracker_Pos(object):
     Advances the state vector and returns the predicted bounding box estimate.
     """
     self.kf.predict()      
-    if self.kf.x[2] >= np.pi: self.kf.x[2] -= np.pi * 2
-    if self.kf.x[2] < -np.pi: self.kf.x[2] += np.pi * 2
 
+    # if self.kf.x[2] >= np.pi: self.kf.x[2] -= np.pi * 2
+    # if self.kf.x[2] < -np.pi: self.kf.x[2] += np.pi * 2
+    
     self.age += 1
     if(self.time_since_update>0):
       self.hit_streak = 0
@@ -114,6 +121,6 @@ class KalmanMotionTracker_Pos(object):
 
   def get_state(self):
     """
-    Returns the current bounding box estimate.
+    Returns the current bounding motion  estimate.
     """
     return self.kf.x[2:].reshape((3, ))

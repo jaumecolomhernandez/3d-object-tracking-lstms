@@ -140,31 +140,32 @@ class Route:
         if use_obs:
             observed_pos = self.routes.loc[0,['obs_x', 'obs_y']].values
             kf_obs = np.concatenate((observed_pos, observed_vel))
-            return kf_obs
+            return kf_obs, observed_vel
         else:
-            return observed_vel
-    def get_tracker(self, kf_obs, use_obs):
+            return observed_vel, observed_vel
+    def get_tracker(self, kf_obs, use_obs, param):
         """ """
+        
         if use_obs:
-            return KalmanMotionTracker_Pos(kf_obs, None)
+            return KalmanMotionTracker_Pos(kf_obs, parameter=param)
         else:
-            return KalmanMotionTracker(kf_obs, None)
+            return KalmanMotionTracker(kf_obs, parameter=param)
 
 
-    def run_kalman_filter(self, cat, use_obs=True):
+    def run_kalman_filter(self, cat, store_name, use_obs=True, param=None):
         """  """
         # Tracker object initialization
-        kf_obs = self.get_observation(i=0, cat=cat, use_obs=use_obs)
-        tracker = self.get_tracker(kf_obs=kf_obs,use_obs=use_obs)
+        kf_obs, observed_vel = self.get_observation(i=0, cat=cat, use_obs=use_obs)
+        tracker = self.get_tracker(kf_obs=kf_obs,use_obs=use_obs, param=param)
         #tracker = KalmanMotionTracker(kf_obs, None)
         
         # Container for the KF data
         kf = np.zeros((self.n_samples,3))
-        kf[0,:] = kf_obs
+        kf[0,:] = observed_vel    
 
         # We feed from 0 to N observations to the filter
         for i in range(1, self.n_samples):
-            kf_obs = self.get_observation(i=i, cat=cat, use_obs=use_obs)
+            kf_obs, _ = self.get_observation(i=i, cat=cat, use_obs=use_obs)
             tracker.update(kf_obs)
             # We store the inmediate pose
             predictions = tracker.predict()
@@ -173,9 +174,10 @@ class Route:
             kf[i,:] = predictions
         
         # Store them in the container
-        self.generated.loc[:,f'{cat}+kf_x'] = kf[:,0]
-        self.generated.loc[:,f'{cat}+kf_y'] = kf[:,1]
-        self.generated.loc[:,f'{cat}+kf_a'] = kf[:,2]
+        
+        self.generated.loc[:,f'{cat}{store_name}_x'] = kf[:,0]
+        self.generated.loc[:,f'{cat}{store_name}_y'] = kf[:,1]
+        self.generated.loc[:,f'{cat}{store_name}_a'] = kf[:,2]
 
     def compute_rmse_error(self, cat):    
         """ Computes the rmse for translation and angle.
