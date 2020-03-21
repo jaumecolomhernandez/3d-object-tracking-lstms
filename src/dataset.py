@@ -28,12 +28,16 @@ class Route:
         self.name = name
         self.full = True
         self.n_samples = base_data.shape[0]
+        class RouteNames:
+            position = ['gt']
+            translation = ['align3d']
+        self.name_routes = RouteNames()
 
         # Error parameters
         self.trans_error = dict()
         self.angle_error = dict()
         
-        # Support parameters
+        # Support parameters; Used to create the new dataframes
         n_timestamps = base_data.shape[0]
         df_index = np.arange(n_timestamps)
 
@@ -79,12 +83,14 @@ class Route:
 
         # Create route with first observation of pc1 and the rest
         # from pc2
-        self.routes.loc[0, 'obs_x'] = mean_pc1[0,0]
-        self.routes.loc[0, 'obs_y'] = mean_pc1[0,1]
-        self.routes.loc[1:, 'obs_x'] = mean_pc2[1:,0]
-        self.routes.loc[1:, 'obs_y'] = mean_pc2[1:,1]
+        self.routes.loc[0, 'mean_x'] = mean_pc1[0,0]
+        self.routes.loc[0, 'mean_y'] = mean_pc1[0,1]
+        self.routes.loc[1:, 'mean_x'] = mean_pc2[1:,0]
+        self.routes.loc[1:, 'mean_y'] = mean_pc2[1:,1]
 
-        self.routes.loc[:, 'obs_a'] = 1
+        self.routes.loc[:, 'mean_a'] = 1
+
+        self.name_routes.position.append('mean')
         
     def make_relative_route(self, cat):
         """ Creates relative route
@@ -139,16 +145,16 @@ class Route:
         observed_vel = self.generated.loc[i,[f'{cat}_x', f'{cat}_y', f'{cat}_a']].values
         # Then add observations based on use_obs
         if use_obs:
-            observed_pos = self.routes.loc[i,['obs_x', 'obs_y']].values
+            observed_pos = self.routes.loc[i,['mean_x', 'mean_y']].values
             kf_obs = np.concatenate((observed_pos, observed_vel))
             return kf_obs, observed_vel
         else:
             return observed_vel, observed_vel
    
-    def run_kalman_filter_means(self, store_name, generates_route=False,    param=None):
+    def run_kalman_filter_means(self, store_name, generates_route=False, param=None):
         """  """
         # Tracker object initialization
-        kf_obs = observed_pos = self.routes.loc[0,['obs_x', 'obs_y']].values
+        kf_obs = observed_pos = self.routes.loc[0,['mean_x', 'mean_y']].values
         tracker = KalmanMotionTracker_Simple(kf_obs, parameter=param)
         
         # Container for the KF data
@@ -157,7 +163,7 @@ class Route:
 
         # We feed from 0 to N observations to the filter
         for i in range(1, self.n_samples):
-            kf_obs = self.routes.loc[0,['obs_x', 'obs_y']].values
+            kf_obs = self.routes.loc[0,['mean_x', 'mean_y']].values
             tracker.update(kf_obs)
             # We store the inmediate pose
             predictions = tracker.predict()
@@ -167,9 +173,19 @@ class Route:
             kf[i,:2] = predictions
             
         # Store them in the container
-        self.generated.loc[:,f'{store_name}_x'] = kf[:,0]
-        self.generated.loc[:,f'{store_name}_y'] = kf[:,1]
-        self.generated.loc[:,f'{store_name}_a'] = 0
+        if generates_route:
+            self.routes.loc[:,f'{store_name}_x'] = kf[:,0]
+            self.routes.loc[:,f'{store_name}_y'] = kf[:,1]
+            self.routes.loc[:,f'{store_name}_a'] = 0
+
+            self.name_routes.position.append(store_name)
+
+        else:
+            self.generated.loc[:,f'{store_name}_x'] = kf[:,0]
+            self.generated.loc[:,f'{store_name}_y'] = kf[:,1]
+            self.generated.loc[:,f'{store_name}_a'] = 0
+
+            self.name_routes.translation.append(store_name)
 
 
     def run_kalman_filter_align3d(self, store_name, generates_route=False, param=None):
@@ -195,16 +211,27 @@ class Route:
             kf[i,:] = predictions
             
         # Store them in the container
-        self.generated.loc[:,f'{store_name}_x'] = kf[:,0]
-        self.generated.loc[:,f'{store_name}_y'] = kf[:,1]
-        self.generated.loc[:,f'{store_name}_a'] = kf[:,2]
+        if generates_route:
+            self.routes.loc[:,f'{store_name}_x'] = kf[:,0]
+            self.routes.loc[:,f'{store_name}_y'] = kf[:,1]
+            self.routes.loc[:,f'{store_name}_a'] = kf[:,2]
+
+            self.name_routes.position.append(store_name)
+
+        else:
+            self.generated.loc[:,f'{store_name}_x'] = kf[:,0]
+            self.generated.loc[:,f'{store_name}_y'] = kf[:,1]
+            self.generated.loc[:,f'{store_name}_a'] = kf[:,2]
+
+            self.name_routes.translation.append(store_name)
+
     
     def run_kalman_filter_align3d_means(self, store_name, generates_route=False,param=None):
         """  """
         # Tracker object initialization
         observed_vel = self.generated.loc[0,['align3d_x', 'align3d_y', 'align3d_a']].values
         # Then add observations based on use_obs
-        observed_pos = self.routes.loc[0,['obs_x', 'obs_y']].values
+        observed_pos = self.routes.loc[0,['mean_x', 'mean_y']].values
         kf_obs = np.concatenate((observed_pos, observed_vel))
         
         tracker = KalmanMotionTracker_Pos(position=kf_obs, parameter=param)
@@ -218,7 +245,7 @@ class Route:
             # Tracker object initialization
             observed_vel = self.generated.loc[i,['align3d_x', 'align3d_y', 'align3d_a']].values
             # Then add observations based on use_obs
-            observed_pos = self.routes.loc[i,['obs_x', 'obs_y']].values
+            observed_pos = self.routes.loc[i,['mean_x', 'mean_y']].values
             kf_obs = np.concatenate((observed_pos, observed_vel))
 
             tracker.update(kf_obs)
@@ -232,9 +259,40 @@ class Route:
             
         
         # Store them in the container
-        self.generated.loc[:,f'{store_name}_x'] = kf[:,0]
-        self.generated.loc[:,f'{store_name}_y'] = kf[:,1]
-        self.generated.loc[:,f'{store_name}_a'] = kf[:,2]
+        if generates_route:
+            self.routes.loc[:,f'{store_name}_x'] = kf[:,0]
+            self.routes.loc[:,f'{store_name}_y'] = kf[:,1]
+            self.routes.loc[:,f'{store_name}_a'] = kf[:,2]
+
+            self.name_routes.position.append(store_name)
+
+        else:
+            self.generated.loc[:,f'{store_name}_x'] = kf[:,0]
+            self.generated.loc[:,f'{store_name}_y'] = kf[:,1]
+            self.generated.loc[:,f'{store_name}_a'] = kf[:,2]
+
+            self.name_routes.translation.append(store_name)
+
+
+    def compute_routes(self):
+        ''' Computes all the translation routes automatically 
+            Trying to reduce boilerplate code...
+        '''
+        for name in self.name_routes.translation:
+            self.make_absolute_route(name)
+            self.make_relative_route(name)
+        
+    
+    def compute_all_rmse(self):
+        ''' Computes the error for all the routes 
+            Trying to reduce boilerplate code...
+        '''
+        for name in self.name_routes.translation:
+            self.compute_rmse_error(name+'_absolute')
+            self.compute_rmse_error(name+'_relative')
+
+        for name in self.name_routes.position:
+            self.compute_rmse_error(name)
 
     def compute_rmse_error(self, cat):    
         """ Computes the rmse for translation and angle.
