@@ -126,7 +126,7 @@ class Route:
         self.routes.loc[:,f'{cat}_absolute_y'] = route_arr[:,1]
         self.routes.loc[:,f'{cat}_absolute_a'] = route_arr[:,2]
     
-    def get_observation(self, cat, i, use_obs):
+    def get_observation(self, cat, i, use_obs): # UNUSED!
         """ Prepares the Kalman Filter observation
             Params:
             - cat: (string) name of the category to use to extract information (x,y,a)
@@ -145,7 +145,7 @@ class Route:
         else:
             return observed_vel, observed_vel
    
-    def run_kalman_filter_only_obs(self, store_name, param=None):
+    def run_kalman_filter_means(self, store_name, generates_route=False,    param=None):
         """  """
         # Tracker object initialization
         kf_obs = observed_pos = self.routes.loc[0,['obs_x', 'obs_y']].values
@@ -172,10 +172,10 @@ class Route:
         self.generated.loc[:,f'{store_name}_a'] = 0
 
 
-    def run_kalman_filter_only_align3d(self, cat, store_name, param=None):
+    def run_kalman_filter_align3d(self, store_name, generates_route=False, param=None):
         """  """
         # Tracker object initialization
-        kf_obs = self.generated.loc[0,[f'{cat}_x', f'{cat}_y', f'{cat}_a']].values
+        kf_obs = self.generated.loc[0,['align3d_x', 'align3d_y', 'align3d_a']].values
         tracker = KalmanMotionTracker(kf_obs, param=param)
         
         # Container for the KF data
@@ -184,7 +184,7 @@ class Route:
 
         # We feed from 0 to N observations to the filter
         for i in range(1, self.n_samples):
-            kf_obs = self.generated.loc[i,[f'{cat}_x', f'{cat}_y', f'{cat}_a']].values
+            kf_obs = self.generated.loc[i,['align3d_x', 'align3d_y', 'align3d_a']].values
             tracker.update(kf_obs)
             # We store the inmediate pose
             predictions = tracker.predict()
@@ -195,14 +195,14 @@ class Route:
             kf[i,:] = predictions
             
         # Store them in the container
-        self.generated.loc[:,f'{cat}{store_name}_x'] = kf[:,0]
-        self.generated.loc[:,f'{cat}{store_name}_y'] = kf[:,1]
-        self.generated.loc[:,f'{cat}{store_name}_a'] = kf[:,2]
+        self.generated.loc[:,f'{store_name}_x'] = kf[:,0]
+        self.generated.loc[:,f'{store_name}_y'] = kf[:,1]
+        self.generated.loc[:,f'{store_name}_a'] = kf[:,2]
     
-    def run_kalman_filter_align3d_means(self, cat, store_name, use_obs=True, param=None):
+    def run_kalman_filter_align3d_means(self, store_name, generates_route=False,param=None):
         """  """
         # Tracker object initialization
-        observed_vel = self.generated.loc[0,[f'{cat}_x', f'{cat}_y', f'{cat}_a']].values
+        observed_vel = self.generated.loc[0,['align3d_x', 'align3d_y', 'align3d_a']].values
         # Then add observations based on use_obs
         observed_pos = self.routes.loc[0,['obs_x', 'obs_y']].values
         kf_obs = np.concatenate((observed_pos, observed_vel))
@@ -216,7 +216,7 @@ class Route:
         # We feed from 0 to N observations to the filter
         for i in range(1, self.n_samples):
             # Tracker object initialization
-            observed_vel = self.generated.loc[i,[f'{cat}_x', f'{cat}_y', f'{cat}_a']].values
+            observed_vel = self.generated.loc[i,['align3d_x', 'align3d_y', 'align3d_a']].values
             # Then add observations based on use_obs
             observed_pos = self.routes.loc[i,['obs_x', 'obs_y']].values
             kf_obs = np.concatenate((observed_pos, observed_vel))
@@ -232,9 +232,9 @@ class Route:
             
         
         # Store them in the container
-        self.generated.loc[:,f'{cat}{store_name}_x'] = kf[:,0]
-        self.generated.loc[:,f'{cat}{store_name}_y'] = kf[:,1]
-        self.generated.loc[:,f'{cat}{store_name}_a'] = kf[:,2]
+        self.generated.loc[:,f'{store_name}_x'] = kf[:,0]
+        self.generated.loc[:,f'{store_name}_y'] = kf[:,1]
+        self.generated.loc[:,f'{store_name}_a'] = kf[:,2]
 
     def compute_rmse_error(self, cat):    
         """ Computes the rmse for translation and angle.
