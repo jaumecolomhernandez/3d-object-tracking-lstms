@@ -6,6 +6,7 @@ import sys
 
 from kalmanfiltermotion import KalmanMotionTracker
 from kalmanfiltermotion_pos import KalmanMotionTracker_Pos
+from kalmanfiltermotion_simple import KalmanMotionTracker_Simple
 
 class Route:
     """ Class to contain all the route data 
@@ -35,7 +36,7 @@ class Route:
         # Support parameters
         n_timestamps = base_data.shape[0]
         df_index = np.arange(n_timestamps)
-        
+
         # Remove the index for the dataframe
         base_data.reset_index(drop=True, inplace=True)
         
@@ -138,26 +139,75 @@ class Route:
         observed_vel = self.generated.loc[i,[f'{cat}_x', f'{cat}_y', f'{cat}_a']].values
         # Then add observations based on use_obs
         if use_obs:
-            observed_pos = self.routes.loc[0,['obs_x', 'obs_y']].values
+            observed_pos = self.routes.loc[i,['obs_x', 'obs_y']].values
             kf_obs = np.concatenate((observed_pos, observed_vel))
             return kf_obs, observed_vel
         else:
             return observed_vel, observed_vel
-    def get_tracker(self, kf_obs, use_obs, param):
-        """ """
-        
-        if use_obs:
-            return KalmanMotionTracker_Pos(kf_obs, parameter=param)
-        else:
-            return KalmanMotionTracker(kf_obs, parameter=param)
-
-
-    def run_kalman_filter(self, cat, store_name, use_obs=True, param=None):
+   
+    def run_kalman_filter_only_obs(self, store_name, param=None):
         """  """
         # Tracker object initialization
-        kf_obs, observed_vel = self.get_observation(i=0, cat=cat, use_obs=use_obs)
-        tracker = self.get_tracker(kf_obs=kf_obs,use_obs=use_obs, param=param)
-        #tracker = KalmanMotionTracker(kf_obs, None)
+        kf_obs = observed_pos = self.routes.loc[0,['obs_x', 'obs_y']].values
+        tracker = KalmanMotionTracker_Simple(kf_obs, parameter=param)
+        
+        # Container for the KF data
+        kf = np.zeros((self.n_samples,2))
+        kf[0,:2] = kf_obs    
+
+        # We feed from 0 to N observations to the filter
+        for i in range(1, self.n_samples):
+            kf_obs = self.routes.loc[0,['obs_x', 'obs_y']].values
+            tracker.update(kf_obs)
+            # We store the inmediate pose
+            predictions = tracker.predict()
+            # We present the updated state
+            predictions = tracker.get_state()
+
+            kf[i,:2] = predictions
+            
+        # Store them in the container
+        self.generated.loc[:,f'{store_name}_x'] = kf[:,0]
+        self.generated.loc[:,f'{store_name}_y'] = kf[:,1]
+        self.generated.loc[:,f'{store_name}_a'] = 0
+
+
+    def run_kalman_filter_only_align3d(self, cat, store_name, param=None):
+        """  """
+        # Tracker object initialization
+        kf_obs = self.generated.loc[0,[f'{cat}_x', f'{cat}_y', f'{cat}_a']].values
+        tracker = KalmanMotionTracker(kf_obs, param=param)
+        
+        # Container for the KF data
+        kf = np.zeros((self.n_samples,3))
+        kf[0,:] = kf_obs    
+
+        # We feed from 0 to N observations to the filter
+        for i in range(1, self.n_samples):
+            kf_obs = self.generated.loc[i,[f'{cat}_x', f'{cat}_y', f'{cat}_a']].values
+            tracker.update(kf_obs)
+            # We store the inmediate pose
+            predictions = tracker.predict()
+
+            # We present the updated state
+            predictions = tracker.get_state()
+
+            kf[i,:] = predictions
+            
+        # Store them in the container
+        self.generated.loc[:,f'{cat}{store_name}_x'] = kf[:,0]
+        self.generated.loc[:,f'{cat}{store_name}_y'] = kf[:,1]
+        self.generated.loc[:,f'{cat}{store_name}_a'] = kf[:,2]
+    
+    def run_kalman_filter_align3d_means(self, cat, store_name, use_obs=True, param=None):
+        """  """
+        # Tracker object initialization
+        observed_vel = self.generated.loc[0,[f'{cat}_x', f'{cat}_y', f'{cat}_a']].values
+        # Then add observations based on use_obs
+        observed_pos = self.routes.loc[0,['obs_x', 'obs_y']].values
+        kf_obs = np.concatenate((observed_pos, observed_vel))
+        
+        tracker = KalmanMotionTracker_Pos(position=kf_obs, parameter=param)
         
         # Container for the KF data
         kf = np.zeros((self.n_samples,3))
@@ -165,16 +215,23 @@ class Route:
 
         # We feed from 0 to N observations to the filter
         for i in range(1, self.n_samples):
-            kf_obs, _ = self.get_observation(i=i, cat=cat, use_obs=use_obs)
+            # Tracker object initialization
+            observed_vel = self.generated.loc[i,[f'{cat}_x', f'{cat}_y', f'{cat}_a']].values
+            # Then add observations based on use_obs
+            observed_pos = self.routes.loc[i,['obs_x', 'obs_y']].values
+            kf_obs = np.concatenate((observed_pos, observed_vel))
+
             tracker.update(kf_obs)
             # We store the inmediate pose
             predictions = tracker.predict()
+
             # We present the updated state
             predictions = tracker.get_state()
+
             kf[i,:] = predictions
+            
         
         # Store them in the container
-        
         self.generated.loc[:,f'{cat}{store_name}_x'] = kf[:,0]
         self.generated.loc[:,f'{cat}{store_name}_y'] = kf[:,1]
         self.generated.loc[:,f'{cat}{store_name}_a'] = kf[:,2]
