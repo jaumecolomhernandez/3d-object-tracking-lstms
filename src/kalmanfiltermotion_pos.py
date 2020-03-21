@@ -30,16 +30,16 @@ class KalmanMotionTracker_Pos(object):
     self.kf.P = np.eye(5) * 50.
     #self.kf.R = np.eye(5) * 0.5
     obs = parameter
-    self.kf.R = np.array([[obs,0,1,0,0],      # state transition matrix
-                          [0,obs,0,1,0],
+    self.kf.R = np.array([[5,0,0,0,0],      # Measurement uncertainty
+                          [0,5,0,0,0],
                           [0,0,0.5,0,0],
                           [0,0,0,0.5,0],  
                           [0,0,0,0,0.5]])
     #self.kf.R = np.eye(3) * parameter
 
 
-    self.kf.P *= 10.
-    self.kf.Q[3:,3:] *= 0.1
+    self.kf.P *= 10
+    self.kf.Q = np.eye(5) * 10
 
     self.kf.F = np.array([[1,0,1,0,0],      # state transition matrix
                           [0,1,0,1,0],
@@ -115,12 +115,14 @@ class KalmanMotionTracker_Pos(object):
     if(self.time_since_update>0):
       self.hit_streak = 0
       self.still_first = False
+
     self.time_since_update += 1
     self.history.append(self.kf.x)
-    #return self.history[-1]
+
+    return self.kf.x[2:].reshape((3, ))
 
   def get_state(self):
     """
-    Returns the current bounding motion  estimate.
+    Returns the current motion estimate.
     """
     return self.kf.x[2:].reshape((3, ))

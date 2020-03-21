@@ -4,11 +4,11 @@
 from filterpy.kalman import KalmanFilter
 import numpy as np
 
-class KalmanMotionTracker(object):
+class KalmanMotionTracker_Simple(object):
   """
   This class represents the internal state of individual tracked objects observed as bbox.
   """
-  def __init__(self, kf_obs, param):
+  def __init__(self, position, parameter):
     """
     Initialises a tracker using initial position.
 
@@ -22,30 +22,28 @@ class KalmanMotionTracker(object):
       B : ndarray (dim_x, dim_u), default 0 control transition matrix
     """
     #define constant velocity model
-    self.kf = KalmanFilter(dim_x=5, dim_z=3)   
+    self.kf = KalmanFilter(dim_x=4, dim_z=2)   
 
-    # x = [x,y,vx,vy,va]
-    self.kf.x[:3] = kf_obs.reshape((3, 1))
+    # x = [x,y,vx,vy]
+    self.kf.x[:2] = position.reshape((2, 1))
     #self.kf.P[3:,3:] *= 1000. #state uncertainty, give high uncertainty to the unobservable initial velocities, covariance matrix
-    self.kf.P = np.eye(5) * 50.
-    self.kf.R = np.eye(3) * 0.5
-    #self.kf.R = np.eye(3) * parameter
+    self.kf.P = np.eye(4) * 50.
+    #self.kf.R = np.eye(2) * 0.5
+    obs = parameter
+    self.kf.R = np.array([[1,0],      # Measurement uncertainty
+                          [0,1]])
 
+    self.kf.P *= 10
+    self.kf.Q = np.eye(4)*10
 
-    self.kf.P *= 10.
-    self.kf.Q[3:,3:] *= 0.01
-
-    self.kf.F = np.array([[1,0,1,0,0],      # state transition matrix
-                          [0,1,0,1,0],
-                          [0,0,1,0,0],
-                          [0,0,0,1,0],  
-                          [0,0,0,0,1]])
+    self.kf.F = np.array([[1,0,1,0],      # state transition matrix
+                          [0,1,0,1],
+                          [0,0,1,0],
+                          [0,0,0,1]])
     
-    self.kf.H = np.array([[0,0,1,0,0],      # measurement function,
-                          [0,0,0,1,0],
-                          [0,0,0,0,1]])
+    self.kf.H = np.array([[1,0,0,0],      # measurement function,
+                          [0,1,0,0]])
  
-
     # self.kf.R[0:,0:] *= 10.   # measurement uncertainty
 
     self.time_since_update = 0
@@ -67,51 +65,27 @@ class KalmanMotionTracker(object):
     if self.still_first:
       self.first_continuing_hit += 1      # number of continuing hit in the fist time
     
-    ######################### orientation correction NEEDED?
-    if self.kf.x[2] >= np.pi: self.kf.x[2] -= np.pi * 2    # make the theta still in the range
-    if self.kf.x[2] < -np.pi: self.kf.x[2] += np.pi * 2
-
-    new_theta = position[2]
-    if new_theta >= np.pi: new_theta -= np.pi * 2    # make the theta still in the range
-    if new_theta < -np.pi: new_theta += np.pi * 2
-    position[2] = new_theta
-
-    predicted_theta = self.kf.x[2]
-    if abs(new_theta - predicted_theta) > np.pi / 2.0 and abs(new_theta - predicted_theta) < np.pi * 3 / 2.0:     # if the angle of two theta is not acute angle
-      self.kf.x[2] += np.pi       
-      if self.kf.x[2] > np.pi: self.kf.x[2] -= np.pi * 2    # make the theta still in the range
-      if self.kf.x[2] < -np.pi: self.kf.x[2] += np.pi * 2
-      
-    # now the angle is acute: < 90 or > 270, convert the case of > 270 to < 90
-    if abs(new_theta - self.kf.x[2]) >= np.pi * 3 / 2.0:
-      if new_theta > 0: self.kf.x[2] += np.pi * 2
-      else: self.kf.x[2] -= np.pi * 2
-    
-    #########################
-
     self.kf.update(position)
 
-    if self.kf.x[2] >= np.pi: self.kf.x[2] -= np.pi * 2    # make the theta still in the range
-    if self.kf.x[2] < -np.pi: self.kf.x[2] += np.pi * 2
 
   def predict(self):       
     """
     Advances the state vector and returns the predicted bounding box estimate.
     """
     self.kf.predict()      
-    if self.kf.x[2] >= np.pi: self.kf.x[2] -= np.pi * 2
-    if self.kf.x[2] < -np.pi: self.kf.x[2] += np.pi * 2
-
+    
     self.age += 1
     if(self.time_since_update>0):
       self.hit_streak = 0
       self.still_first = False
+
     self.time_since_update += 1
     self.history.append(self.kf.x)
-    #return self.history[-1]
+
+    return self.kf.x[:2].reshape((2, ))
 
   def get_state(self):
     """
-    Returns the current bounding box estimate.
+    Returns the current motion estimate.
     """
-    return self.kf.x[2:].reshape((3, ))
+    return self.kf.x[:2].reshape((2, ))
