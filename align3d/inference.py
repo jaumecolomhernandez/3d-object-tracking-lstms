@@ -128,6 +128,9 @@ def run_inference(configs, ids, ppath):
         # Prediction containers
         all_pred_translations = np.empty((len(val_idxs), 3), dtype=np.float32)
         all_pred_angles = np.empty((len(val_idxs), 1), dtype=np.float32)
+        all_pred_pc1centers = np.empty((len(val_idxs), 3), dtype=np.float32)
+        all_pred_pc2centers = np.empty((len(val_idxs), 3), dtype=np.float32)
+
         
         # The conversion from logits to is done outside the model
         # Pass this to the model!
@@ -168,7 +171,7 @@ def run_inference(configs, ids, ppath):
             start = time.time()
             
             # TODO: IDEM Create class to solve this mess
-            summary, loss_val, pred_translations,pred_pc1angle_logits, pred_pc2angle_logits, pred_remaining_angle_logits, _, _, _, _ = sess.run([ops['merged'], ops['loss'], ops['pred_translations'], ops['pred_pc1angle_logits'], ops['pred_pc2angle_logits'], ops['pred_remaining_angle_logits'], ops['pred_s1_pc1centers'], ops['pred_s1_pc2centers'], ops['pred_s2_pc1centers'], ops['pred_s2_pc2centers']], feed_dict=feed_dict)
+            summary, loss_val, pred_translations, pred_pc1angle_logits, pred_pc2angle_logits, pred_remaining_angle_logits, _, _, pred_pc1centers, pred_pc2centers = sess.run([ops['merged'], ops['loss'], ops['pred_translations'], ops['pred_pc1angle_logits'], ops['pred_pc2angle_logits'], ops['pred_remaining_angle_logits'], ops['pred_s1_pc1centers'], ops['pred_s1_pc2centers'], ops['pred_s2_pc1centers'], ops['pred_s2_pc2centers']], feed_dict=feed_dict)
             
             # Why do we need time?
             cumulated_times += time.time() - start
@@ -177,6 +180,9 @@ def run_inference(configs, ids, ppath):
             
             # How can this be longer? Maybe when not full batch
             pred_translations = pred_translations[:actual_batch_size]
+            pred_pc1centers = pred_pc1centers[:actual_batch_size]
+            pred_pc2centers = pred_pc2centers[:actual_batch_size]
+
             # Correct from logits to angle
             pred_angles_pc1 = MODEL.classLogits2angle(pred_pc1angle_logits[:actual_batch_size])
             pred_angles_pc2 = MODEL.classLogits2angle(pred_pc2angle_logits[:actual_batch_size])
@@ -200,6 +206,8 @@ def run_inference(configs, ids, ppath):
 
                 all_pred_translations[global_idx] = pred_translations[idx]
                 all_pred_angles[global_idx] = pred_angles[idx]
+                all_pred_pc1centers[global_idx] = pred_pc1centers[idx]
+                all_pred_pc2centers[global_idx] = pred_pc2centers[idx]
 
                 all_gt_translations[global_idx] = translations[idx]
                 all_gt_angles[global_idx] = rel_angles[idx]
@@ -209,8 +217,8 @@ def run_inference(configs, ids, ppath):
 
     print("Results fully computed")
 
-    info = np.hstack((all_pred_translations[:,:-1], all_pred_angles, all_gt_translations[:,:-1], all_gt_angles, all_gt_pc1centers[:,:-1], all_gt_pc1angles))
-    names = ['pred_trans_x', 'pred_trans_y', 'pred_angles', 'gt_trans_x', 'gt_trans_y', 'gt_angles', 'gt_pc1centers_x', 'gt_pc1centers_y', 'gt_pc1angles']
+    info = np.hstack((all_pred_translations[:,:-1], all_pred_angles, all_pred_pc1centers[:,:-1], all_pred_pc2centers[:,:-1], all_gt_translations[:,:-1], all_gt_angles, all_gt_pc1centers[:,:-1], all_gt_pc1angles))
+    names = ['pred_trans_x', 'pred_trans_y', 'pred_angles', 'pred_pc1center_x', 'pred_pc1center_y', 'pred_pc2center_x', 'pred_pc2center_y', 'gt_trans_x', 'gt_trans_y', 'gt_angles', 'gt_pc1centers_x', 'gt_pc1centers_y', 'gt_pc1angles']
 
     df = DataFrame(info, columns=names)
     
