@@ -4,9 +4,12 @@ import numpy as np
 import os
 import sys
 
-from kalmanfiltermotion import KalmanMotionTracker
-from kalmanfiltermotion_pos import KalmanMotionTracker_Pos
-from kalmanfiltermotion_simple import KalmanMotionTracker_Simple
+from kf_means import KalmanMotionTrackerMeans
+from kf_means_align3d import KalmanMotionTrackerMeansAlign
+from kf_means_align3dXY import KalmanMotionTrackerMeansAlignXY
+from kf_align3d import KalmanMotionTrackerAlign
+
+
 
 class Route:
     """ Class to contain all the route data 
@@ -32,7 +35,7 @@ class Route:
             position = ['gt']
             translation = ['align3d']
         self.name_routes = RouteNames()
-
+ 
         # Error parameters
         self.trans_error = dict()
         self.angle_error = dict()
@@ -70,28 +73,28 @@ class Route:
     def __str__(self):
         pass
 
-    def add_obs_mean(self, mean_pc1, mean_pc2):
+    def add_observation(self, obs_pc1, obs_pc2, name="mean"):
         """ Adds mean of observations to gt DataFrame """
         
         # Assign pc1
-        self.ground_truth.loc[:,'mean_pc1_x'] = mean_pc1[:,0]
-        self.ground_truth.loc[:,'mean_pc1_y'] = mean_pc1[:,1]
+        self.ground_truth.loc[:,f'{name}_pc1_x'] = obs_pc1[:,0]
+        self.ground_truth.loc[:,f'{name}_pc1_y'] = obs_pc1[:,1]
 
         # Assign pc2
-        self.ground_truth.loc[:,'mean_pc2_x'] = mean_pc1[:,0]
-        self.ground_truth.loc[:,'mean_pc2_y'] = mean_pc1[:,1]
+        self.ground_truth.loc[:,f'{name}_pc2_x'] = obs_pc2[:,0]
+        self.ground_truth.loc[:,f'{name}_pc2_y'] = obs_pc2[:,1]
 
         # Create route with first observation of pc1 and the rest
         # from pc2
-        self.routes.loc[0, 'mean_x'] = mean_pc1[0,0]
-        self.routes.loc[0, 'mean_y'] = mean_pc1[0,1]
-        self.routes.loc[1:, 'mean_x'] = mean_pc2[1:,0]
-        self.routes.loc[1:, 'mean_y'] = mean_pc2[1:,1]
+        self.routes.loc[0, f'{name}_x'] = obs_pc1[0,0]
+        self.routes.loc[0, f'{name}_y'] = obs_pc1[0,1]
+        self.routes.loc[1:, f'{name}_x'] = obs_pc2[1:,0]
+        self.routes.loc[1:, f'{name}_y'] = obs_pc2[1:,1]
 
-        self.routes.loc[:, 'mean_a'] = 1
+        self.routes.loc[:, f'{name}_a'] = 1
 
-        self.name_routes.position.append('mean')
-        
+        self.name_routes.position.append(name)
+
     def make_relative_route(self, cat):
         """ Creates relative route
             A relative route is pc1centers + translation prediction. It does not take
@@ -151,11 +154,11 @@ class Route:
         else:
             return observed_vel, observed_vel
    
-    def run_kalman_filter_means(self, store_name, generates_route=False, param=None):
+    def run_kalman_filter_means(self, store_name, pos_name="mean", generates_route=False, param=None):
         """  """
         # Tracker object initialization
-        kf_obs = observed_pos = self.routes.loc[0,['mean_x', 'mean_y']].values
-        tracker = KalmanMotionTracker_Simple(kf_obs, parameter=param)
+        kf_obs = observed_pos = self.routes.loc[0,[f'{pos_name}_x', f'{pos_name}_y']].values
+        tracker = KalmanMotionTrackerMeans(kf_obs, parameter=param)
         
         # Container for the KF data
         kf = np.zeros((self.n_samples,2))
@@ -163,7 +166,7 @@ class Route:
 
         # We feed from 0 to N observations to the filter
         for i in range(1, self.n_samples):
-            kf_obs = self.routes.loc[0,['mean_x', 'mean_y']].values
+            kf_obs = self.routes.loc[i,[f'{pos_name}_x', f'{pos_name}_y']].values
             tracker.update(kf_obs)
             # We store the inmediate pose
             predictions = tracker.predict()
@@ -188,11 +191,11 @@ class Route:
             self.name_routes.translation.append(store_name)
 
 
-    def run_kalman_filter_align3d(self, store_name, generates_route=False, param=None):
+    def run_kalman_filter_align(self, store_name, generates_route=False, param=None):
         """  """
         # Tracker object initialization
         kf_obs = self.generated.loc[0,['align3d_x', 'align3d_y', 'align3d_a']].values
-        tracker = KalmanMotionTracker(kf_obs, param=param)
+        tracker = KalmanMotionTrackerAlign(kf_obs, param=param)
         
         # Container for the KF data
         kf = np.zeros((self.n_samples,3))
@@ -200,10 +203,12 @@ class Route:
 
         # We feed from 0 to N observations to the filter
         for i in range(1, self.n_samples):
+            predictions = tracker.predict()
+            
             kf_obs = self.generated.loc[i,['align3d_x', 'align3d_y', 'align3d_a']].values
             tracker.update(kf_obs)
             # We store the inmediate pose
-            predictions = tracker.predict()
+            
 
             # We present the updated state
             predictions = tracker.get_state()
@@ -226,34 +231,39 @@ class Route:
             self.name_routes.translation.append(store_name)
 
     
-    def run_kalman_filter_align3d_means(self, store_name, generates_route=False,param=None):
+    def run_kalman_filter_means_align(self, store_name, pos_name="mean", generates_route=False,param=None):
         """  """
         # Tracker object initialization
         observed_vel = self.generated.loc[0,['align3d_x', 'align3d_y', 'align3d_a']].values
         # Then add observations based on use_obs
-        observed_pos = self.routes.loc[0,['mean_x', 'mean_y']].values
+        observed_pos = self.routes.loc[0,[f'{pos_name}_x', f'{pos_name}_y']].values
         kf_obs = np.concatenate((observed_pos, observed_vel))
         
-        tracker = KalmanMotionTracker_Pos(position=kf_obs, parameter=param)
+        tracker = KalmanMotionTrackerMeansAlign(position=kf_obs, parameter=param, route=generates_route)
         
         # Container for the KF data
         kf = np.zeros((self.n_samples,3))
-        kf[0,:] = observed_vel    
+        if generates_route:
+            kf[0,:2] = observed_pos
+        else:
+            kf[0,:] = observed_vel    
 
         # We feed from 0 to N observations to the filter
         for i in range(1, self.n_samples):
+
             # Tracker object initialization
             observed_vel = self.generated.loc[i,['align3d_x', 'align3d_y', 'align3d_a']].values
             # Then add observations based on use_obs
-            observed_pos = self.routes.loc[i,['mean_x', 'mean_y']].values
+            observed_pos = self.routes.loc[i,[f'{pos_name}_x', f'{pos_name}_y']].values
             kf_obs = np.concatenate((observed_pos, observed_vel))
 
             tracker.update(kf_obs)
             # We store the inmediate pose
-            predictions = tracker.predict()
-
             # We present the updated state
             predictions = tracker.get_state()
+
+            predictions = tracker.predict()
+
 
             kf[i,:] = predictions
             
@@ -270,6 +280,58 @@ class Route:
             self.generated.loc[:,f'{store_name}_x'] = kf[:,0]
             self.generated.loc[:,f'{store_name}_y'] = kf[:,1]
             self.generated.loc[:,f'{store_name}_a'] = kf[:,2]
+
+            self.name_routes.translation.append(store_name)
+    
+    def run_kalman_filter_means_align_xy(self, store_name, pos_name="mean", generates_route=False,param=None):
+        """  """
+        # Tracker object initialization
+        observed_vel = self.generated.loc[0,['align3d_x', 'align3d_y']].values
+        # Then add observations based on use_obs
+        observed_pos = self.routes.loc[0,[f'{pos_name}_x', f'{pos_name}_y']].values
+        kf_obs = np.concatenate((observed_pos, observed_vel))
+        
+        tracker = KalmanMotionTrackerMeansAlignXY(position=kf_obs, parameter=param, route=generates_route)
+        
+        # Container for the KF data
+        kf = np.zeros((self.n_samples,3))
+        if generates_route:
+            kf[0,:2] = observed_pos
+        else:
+            kf[0,:2] = observed_vel    
+
+        # We feed from 0 to N observations to the filter
+        for i in range(1, self.n_samples):
+
+            # Tracker object initialization
+            observed_vel = self.generated.loc[i,['align3d_x', 'align3d_y']].values
+            # Then add observations based on use_obs
+            observed_pos = self.routes.loc[i,[f'{pos_name}_x', f'{pos_name}_y']].values
+            kf_obs = np.concatenate((observed_pos, observed_vel))
+
+            tracker.update(kf_obs)
+            # We store the inmediate pose
+            # We present the updated state
+            predictions = tracker.get_state()
+
+            predictions = tracker.predict()
+
+
+            kf[i,:2] = predictions
+            
+        
+        # Store them in the container
+        if generates_route:
+            self.routes.loc[:,f'{store_name}_x'] = kf[:,0]
+            self.routes.loc[:,f'{store_name}_y'] = kf[:,1]
+            self.routes.loc[:,f'{store_name}_a'] = 0
+
+            self.name_routes.position.append(store_name)
+
+        else:
+            self.generated.loc[:,f'{store_name}_x'] = kf[:,0]
+            self.generated.loc[:,f'{store_name}_y'] = kf[:,1]
+            self.generated.loc[:,f'{store_name}_a'] = 0
 
             self.name_routes.translation.append(store_name)
 
