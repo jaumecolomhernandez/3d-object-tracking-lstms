@@ -27,7 +27,7 @@ if __name__ == "__main__":
     datasets_path = os.path.join(home_path, 'project_data', 'datasets')
 
     # This are all the KITTI datasets we can use
-    KITTIDatasets = ['KITTITrackletsCars', 'KITTITrackletsCarsPersons', 'KITTITrackletsCarsHard', 'KITTITrackletsCarsPersonsHard']
+    KITTIDatasets = ['KITTITrackletsCars', 'KITTITrackletsPersons', 'KITTITrackletsCarsPersons', 'KITTITrackletsCarsHard', 'KITTITrackletsCarsPersonsHard']
 
     for name in KITTIDatasets:
         for obs in [1,2]:

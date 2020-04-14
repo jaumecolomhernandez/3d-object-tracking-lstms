@@ -191,8 +191,8 @@ if __name__ == "__main__":
     new_path = os.path.join(home_path, 'project_data', 'new_datasets')
 
     # This are all the KITTI datasets we can use
-    KITTIDatasets = ['KITTITrackletsCars', 'KITTITrackletsCarsPersons', 'KITTITrackletsCarsHard', 'KITTITrackletsCarsPersonsHard']
-
+    #KITTIDatasets = ['KITTITrackletsCars', 'KITTITrackletsCarsPersons', 'KITTITrackletsCarsHard', 'KITTITrackletsCarsPersonsHard']
+    KITTIDatasets = ['KITTITrackletsPersons']
     for name in KITTIDatasets:
         print(f"Now converting {name}")
         
