@@ -88,10 +88,12 @@ class Route:
         # from pc2
         self.routes.loc[0, f'{name}_x'] = obs_pc1[0,0]
         self.routes.loc[0, f'{name}_y'] = obs_pc1[0,1]
+        self.routes.loc[0, f'{name}_a'] = obs_pc1[0,2]
         self.routes.loc[1:, f'{name}_x'] = obs_pc2[1:,0]
         self.routes.loc[1:, f'{name}_y'] = obs_pc2[1:,1]
+        self.routes.loc[1:, f'{name}_a'] = obs_pc2[1:,2]
 
-        self.routes.loc[:, f'{name}_a'] = 1
+    
 
         self.name_routes.position.append(name)
 
